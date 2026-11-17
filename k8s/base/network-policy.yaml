@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: echo-pong-isolation
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: echo-pong
+  policyTypes: [Ingress, Egress]
+  # Both selectors in the same peer must match. Customize with your proxy.
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 8080
+  # The application requires no outbound connections, including DNS.
+  egress: []
