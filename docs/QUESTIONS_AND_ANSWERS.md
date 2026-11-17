@@ -2,7 +2,8 @@
 
 Current implementation details and production design considerations for Echo Pong.
 Executed checks are recorded in [the validation report](../VALIDATION.md).
-CI/CD, GHCR publication, binary releases, and AWS deployment remain planned.
+CI checks and ephemeral-cluster validation are defined in [the CI guide](CI.md).
+GHCR publication, binary releases, and AWS deployment remain planned.
 
 ## Containers and local architecture
 
@@ -70,7 +71,8 @@ pull images; application NetworkPolicy governs pod traffic. Node registry
 connectivity is separate. Current local images are loaded into Kind, so actual
 GHCR pulls remain to be validated after publication.
 
-**Why public GHCR rather than private?** Public images simplify developer access
+**Public or private GHCR?** Visibility is undecided and publication is on hold.
+Public images simplify developer access
 and anonymous cluster pulls. Private images provide access control for proprietary
 artifacts, but need read-only pull credentials and credential lifecycle management.
 Neither option replaces vulnerability scanning or protects secrets baked into an

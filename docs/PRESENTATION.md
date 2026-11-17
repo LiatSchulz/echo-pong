@@ -10,13 +10,14 @@ live in [the Kubernetes guide](../k8s/README.md); recorded results live in
 The application runs behind an ingress controller with two replicas, restricted
 containers, mounted authentication credentials, and enforced network isolation.
 Both CPU architectures have been built and tested. Rolling restart availability
-and network isolation have been verified through local integration checks. Release automation is the next integration step.
+and network isolation have been verified through local integration checks. CI runs source/security checks and disposable-cluster integration. Release
+publication remains on hold pending the registry visibility decision.
 
 | Demonstrated locally | Still to implement or validate |
 | --- | --- |
-| Linux ARM64 and AMD64 images and HTTP/CLI smoke tests | GitHub Actions and release gates |
+| Linux ARM64 and AMD64 images and HTTP/CLI smoke tests | Release publishing and promotion gates |
 | Non-root, read-only runtime with dropped capabilities | GHCR publication, binary releases, production digest promotion |
-| Trivy scans with zero HIGH/CRITICAL findings at validation time | Continuous rescanning as vulnerability data changes |
+| Trivy scans with zero HIGH/CRITICAL findings at validation time | Scheduled rescanning as vulnerability data changes |
 | Ingress rolling restart: 1,106 requests, zero observed failures | New-version release rollout and rollback automation |
 | Positive and negative network controls | Multi-node failure recovery, load tests, cloud deployment |
 
@@ -136,21 +137,24 @@ runtime libraries. An allowlist in `.dockerignore` keeps credentials and local
 files out of the build context. A minimal image still contains Go standard-library
 code, so compiler updates and binary vulnerability scanning matter.
 
-The next pipeline should validate pull requests without publishing releases. A
-version-tag workflow should build both architectures, scan each, block promotion
+The [CI workflows](CI.md) validate pull requests without publishing releases.
+Native AMD64/ARM64 jobs build, scan, and smoke-test images; a separate job tests
+deployment on Kind. Binary archives and checksums are prepared in the job workspace.
+A future version-tag workflow must build both architectures, scan each, block promotion
 on HIGH/CRITICAL findings, publish one multi-platform image index to GHCR, and
 attach versioned binary archives and checksums to a GitHub Release. Production
 should deploy the approved index digest so each node chooses its architecture
 without tags moving underneath the deployment. This workflow is **planned**, not
 implemented yet.
 
-Public GHCR publication is the chosen approach, so nodes can pull anonymously.
-A private package would protect access to proprietary images, but needs read-only
-registry credentials provisioned as an image-pull Secret, referenced by the
-service account, and rotated. The app authentication Secret is separate.
+GHCR package visibility is undecided, and publication is on hold. Public packages
+allow anonymous pulls. Private packages restrict access and require read-only
+pull credentials, service-account configuration, and rotation. The application
+authentication Secret is separate from registry credentials.
 
 ## Further discussion
 
 [Technical questions and answers](QUESTIONS_AND_ANSWERS.md) covers the design
 choices, scaling strategy, EKS approach, regional image distribution, and retention.
-Cloud infrastructure and release automation remain planned.
+Release publication and cloud infrastructure remain planned. Review and release
+follow-up are tracked in [tomorrow’s checklist](TOMORROW.md).
