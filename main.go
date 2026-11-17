@@ -1,14 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -142,7 +147,7 @@ func runCLI() {
 
 // printCLIHelp shows usage information
 func printCLIHelp() {
-	fmt.Println(`
+	fmt.Print(`
 🏓 Ping Pong Game - CLI & Server
 
 USAGE:
@@ -213,11 +218,56 @@ func main() {
 	log.Printf("   GET /      - API documentation")
 
 	log.Printf("Thinking for 10 seconds before starting the server")
-	time.Sleep(10 * time.Second)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+	select {
+	case <-time.After(10 * time.Second):
+	case <-ctx.Done():
+		return
+	}
 
 	log.Printf("Starting the server")
 
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	listener, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := serve(ctx, newHTTPServer(port, http.DefaultServeMux), listener, 20*time.Second); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func newHTTPServer(port string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              ":" + port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+}
+
+func serve(ctx context.Context, server *http.Server, listener net.Listener, shutdownTimeout time.Duration) error {
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- server.Serve(listener) }()
+	select {
+	case err := <-serveErr:
+		return err
+	case <-ctx.Done():
+		log.Printf("Shutting down; allowing in-flight requests to finish")
+		// Independent of the cancelled signal context; fits the Kubernetes grace period.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			server.Close()
+			return fmt.Errorf("HTTP shutdown: %w", err)
+		}
+		if err := <-serveErr; !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	}
 }
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {

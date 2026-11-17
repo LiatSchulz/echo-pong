@@ -1,5 +1,7 @@
 # 🏓 DevOps Home Assignment: Ping-Pong Game Deployment
 
+[Start here: implementation, validation, and demo](docs/START_HERE.md)
+
 ## 📋 Overview
 
 **⏱️ Duration:** 2-3 hours  

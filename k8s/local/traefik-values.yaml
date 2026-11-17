@@ -1,0 +1,33 @@
+image:
+  tag: v3.7.18
+deployment:
+  replicas: 1
+providers:
+  kubernetesCRD:
+    enabled: false
+  kubernetesIngress:
+    enabled: true
+    publishedService:
+      enabled: false
+ingressClass:
+  enabled: true
+  isDefaultClass: false
+  name: traefik
+service:
+  spec:
+    type: NodePort
+ports:
+  web:
+    nodePort: 30080
+  websecure:
+    expose:
+      default: false
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 128Mi
+accessLog:
+  enabled: true

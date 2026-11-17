@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # Build on the builder's native CPU; Go cross-compiles without QEMU.
-ARG GO_VERSION=1.27.4
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-bookworm AS build
+ARG GO_IMAGE=golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
 WORKDIR /src
 
 ARG TARGETOS

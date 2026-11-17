@@ -9,8 +9,8 @@ scratch container needs no shell or `sleep` executable.
 
 - `k8s/base/`: common deployment, ClusterIP service, dedicated service account,
   restricted namespace, disruption budget, and network policy.
-- `k8s/overlays/local`: uses the locally loaded `echo-pong:local` image and never
-  attempts a registry pull.
+- `k8s/overlays/local`: uses the locally loaded `echo-pong:local` image, never
+  attempts a registry pull, and includes the Traefik Ingress.
 - `k8s/overlays/ingress`: adds an optional Traefik Ingress for
   `echo-pong.localhost`. It does not install the controller or provision TLS.
 
@@ -47,7 +47,23 @@ different tokens; coordinate clients or add dual-token support if required.
 
 ## Local deployment
 
-After the container runtime, kubectl, and a Kind cluster are installed:
+Install Docker CLI, Kind, kubectl, and Helm, and start the container runtime.
+On this Mac, Colima supplies the Linux Docker engine. Create the local stack:
+
+```sh
+scripts/local-cluster.sh
+```
+
+The script creates a single-node Kind cluster named `echo-pong` with default CNI
+disabled, installs pinned Calico 3.33.0 for actual NetworkPolicy enforcement, and
+installs Traefik chart 42.4.0 with its supported image 3.7.18. The node image is pinned by digest
+in `k8s/local/kind.yaml`. The one-node layout fits the development VM's 2 CPUs and
+4 GiB RAM; it does not demonstrate node-level redundancy. Only loopback port 8080
+is published. The script targets context `kind-echo-pong` explicitly and does not
+delete an existing cluster. An existing cluster must have been created with the
+same config; creating it with default CNI requires deliberate recreation first.
+
+After provisioning the auth Secret as described above:
 
 ```sh
 docker build -t echo-pong:local .
@@ -56,21 +72,28 @@ kubectl kustomize k8s/overlays/local
 kubectl apply -k k8s/overlays/local
 kubectl -n echo-pong rollout status deployment/echo-pong --timeout=180s
 kubectl -n echo-pong get pods -o wide
-kubectl -n echo-pong port-forward service/echo-pong 8080:80
+curl --fail -H 'Host: echo-pong.localhost' http://127.0.0.1:8080/health
 ```
 
-Use your actual Kind cluster name if it differs. For Minikube, use
-`minikube image load echo-pong:local` instead of `kind load`.
-In a separate terminal, `curl http://127.0.0.1:8080/health` should return 200 and
-`curl -i http://127.0.0.1:8080/ping` should return 401. For an authenticated
+For the complete image-validation flow, run `scripts/check-images.sh` first,
+then `python3 scripts/check-container.py`, before loading and deploying the image.
+Once ready, run `python3 scripts/check-rollout.py --url http://127.0.0.1:8080` for
+continuous HTTP availability during a rolling restart, followed by
+`scripts/verify-network.sh`. These scripts are local integration checks, not
+proof of availability during an infrastructure failure.
+
+The local HTTP request travels through the published NodePort and Traefik to the
+ClusterIP Service. `curl -i -H 'Host: echo-pong.localhost'
+http://127.0.0.1:8080/ping` should return 401. For an authenticated
 request without putting the token in process arguments:
 
 ```sh
 { printf 'Authorization: Bearer '; tr -d '\n' < secrets/token; printf '\n'; } |
-  curl --fail --header @- http://127.0.0.1:8080/ping
+  curl --fail --header @- -H 'Host: echo-pong.localhost' http://127.0.0.1:8080/ping
 ```
 
-Port-forward is an authenticated administrative proxy for local smoke tests. It
+For troubleshooting, `kubectl -n echo-pong port-forward service/echo-pong 18080:80`
+provides an authenticated administrative proxy on port 18080. It
 does not validate ingress routing, Service load balancing, or NetworkPolicy
 enforcement and is unsuitable for a rolling-availability test.
 
@@ -107,8 +130,7 @@ match. Node-origin kubelet probes are allowed by Kubernetes NetworkPolicy rules.
 For the optional ingress overlay, install a Traefik controller with an IngressClass
 named `traefik` and those exact namespace/pod labels, configure a local route to
 its entrypoint, then apply `k8s/overlays/ingress` with a real registry image digest.
-For a local image plus ingress, compose a separate environment overlay or add the
-Ingress resource to the local overlay; the supplied overlays are alternatives.
+The local overlay already includes this Ingress with the locally loaded image.
 Do not assume applying an Ingress installs a controller. Production should use
 TLS and an appropriate hostname; this HTTP-only hostname is a local example.
 If using another controller, change the Ingress class and NetworkPolicy selectors
@@ -116,9 +138,17 @@ together. Cluster-admin access and namespace-label changes must be restricted.
 
 NetworkPolicy requires an enforcing CNI such as Cilium or Calico. A default Kind
 cluster's networking must not be treated as proof of enforcement. Install and
-validate an enforcing CNI during integration, then test allowed proxy traffic,
-blocked traffic from another pod, and denied outbound traffic. A policy manifest
-alone does not establish isolation.
+validate an enforcing CNI during integration. `scripts/local-cluster.sh` installs
+Calico. Run `scripts/verify-network.sh` after the application is ready: it first
+proves a foreign pod can reach the application under a temporary explicit allow
+policy, removes that policy, and requires a timeout from the same pod. It also
+tests denied egress from an ephemeral container sharing an actual application
+pod's network namespace, against a destination verified reachable from a control
+pod. The script cleans up its diagnostic namespace and temporary policy; the
+terminated ephemeral container record remains until the app pod is replaced.
+This requires debug/exec permissions and the diagnostic images to be pullable.
+Allowed ingress is checked through the real Traefik endpoint above. A policy
+manifest alone does not establish isolation.
 
 ## Availability and scaling
 
@@ -139,19 +169,24 @@ redeploy the prior approved digest after investigating.
 The disruption budget retains one available replica during voluntary evictions;
 it does not prevent node failure, and it does not control Deployment rollouts.
 The 10-second preStop delay allows endpoint-routing updates before SIGTERM, with
-a 40-second total termination grace budget. **The supplied application currently
-does not handle SIGTERM or drain active HTTP requests.** Application shutdown
-support and a continuous-traffic rollout test are still required before claiming
-verified zero-downtime updates. Single-node testing cannot prove availability
-through a node failure.
+a 40-second total termination grace budget. The application handles SIGTERM and
+allows up to 20 seconds for active HTTP requests to drain, leaving headroom after
+the 10-second preStop delay. HTTP timeouts bound slow clients. A rolling-restart
+test completed 1,106 authenticated requests through ingress with zero observed
+failures; see [validation results](../VALIDATION.md). Single-node testing cannot
+prove availability through a node failure.
 
 ## Validation status
 
-All three Kustomize entrypoints render successfully with kubectl 1.37.2; YAML
-parsing and whitespace checks passed. Live API validation, secret-permission checks,
-network-policy enforcement, ingress traffic, resource sizing, and rolling-update
-availability must be exercised after the Mac tooling and cluster are ready.
+All three Kustomize entrypoints render successfully with kubectl 1.37.2. A local
+Kind 1.37 ARM64 cluster has Calico 3.33.0 and Traefik 3.7.18 installed. The network
+verification script passed foreign-ingress denial with a same-client positive
+control and actual application-pod egress denial with a reachable destination
+control. See [validation results](../VALIDATION.md) for the complete integration results and limits.
+Resource limits remain initial estimates requiring load testing.
 
 References: [container lifecycle hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/),
 [network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/),
-[Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
+[Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/),
+[Calico on Kind](https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind),
+[Traefik setup](https://doc.traefik.io/traefik/setup/kubernetes/).
