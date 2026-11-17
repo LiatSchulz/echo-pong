@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Build ARM64 and AMD64 images and scan each for HIGH/CRITICAL vulnerabilities.
+# Tag the ARM64 image for local deployment only after both scans pass.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cache_dir="${TRIVY_CACHE_DIR:-/tmp/echo-pong-trivy-cache}"

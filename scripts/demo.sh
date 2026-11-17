@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Demonstrate the local deployment through overview, rollout, or network checks.
+# Overview is read-only; rollout and network modes modify the local test cluster.
 set -euo pipefail
 set +x
 cd "$(dirname "$0")/.."

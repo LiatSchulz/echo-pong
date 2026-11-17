@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Create the local Kind cluster if absent, then install Calico and Traefik.
+# Wait for networking and ingress readiness before deploying the application separately.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 for tool in docker kind kubectl helm curl; do

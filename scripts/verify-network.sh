@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Verify denied foreign ingress and application-pod egress using positive controls.
+# Create temporary diagnostics and an allow policy, then remove them on exit.
 set -euo pipefail
 context=kind-echo-pong
 namespace=echo-pong-netcheck
