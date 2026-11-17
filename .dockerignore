@@ -1,0 +1,5 @@
+# Only Go build inputs enter the context.
+**
+!go.mod
+!go.sum
+!*.go
