@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-pong
+  labels:
+    app.kubernetes.io/name: echo-pong
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  minReadySeconds: 5
+  progressDeadlineSeconds: 180
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: echo-pong
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: echo-pong
+    spec:
+      serviceAccountName: echo-pong
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: [arm64]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: echo-pong
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: echo-pong
+          # Deliberate placeholder: select a scanned release digest before deployment.
+          image: ghcr.io/liatschulz/echo-pong:unreleased
+          imagePullPolicy: IfNotPresent
+          args: ["--mode=server"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: SECRET_FILE_PATH
+              value: /var/run/secrets/echo-pong/token
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Kubelet sleeps; no shell is required in the scratch image.
+              sleep:
+                seconds: 10
+          volumeMounts:
+            - name: auth-token
+              mountPath: /var/run/secrets/echo-pong
+              readOnly: true
+      volumes:
+        - name: auth-token
+          secret:
+            secretName: echo-pong-auth
+            defaultMode: 0440
+            items:
+              - key: token
+                path: token
