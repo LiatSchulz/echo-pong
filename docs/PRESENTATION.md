@@ -1,17 +1,16 @@
-# Echo-Pong presentation guide
+# Echo Pong deployment overview
 
-A 7–10 minute walkthrough of the local deployment, its evidence, and the path to
-production. Run demo commands from the repository root. Setup instructions live
-in [the Kubernetes guide](../k8s/README.md); recorded results live in
+Local architecture, security boundaries, validation evidence, and the path to
+production. Demonstration scripts run from the repository root. Setup instructions
+live in [the Kubernetes guide](../k8s/README.md); recorded results live in
 [the validation report](../VALIDATION.md).
 
-## 1. State the outcome — 30 seconds
+## Deployment status
 
-“The application runs behind an ingress controller with two replicas, restricted
+The application runs behind an ingress controller with two replicas, restricted
 containers, mounted authentication credentials, and enforced network isolation.
-Both CPU architectures have been built and tested. I verified rolling restart
-availability through ingress and tested that the network restrictions actually
-block traffic. Release automation is the next integration step.”
+Both CPU architectures have been built and tested. Rolling restart availability
+and network isolation have been verified through local integration checks. Release automation is the next integration step.
 
 | Demonstrated locally | Still to implement or validate |
 | --- | --- |
@@ -24,7 +23,7 @@ block traffic. Release automation is the next integration step.”
 AMD64 runtime checks used emulation on this ARM64 Mac. A successful scan is a
 dated observation, not a permanent statement about an image's vulnerabilities.
 
-## 2. Explain where everything runs — 90 seconds
+## Runtime architecture
 
 ```mermaid
 flowchart TD
@@ -73,51 +72,37 @@ flowchart TD
   separate requirements. Local images are loaded into Kind and use pull policy
   `Never`.
 
-## 3. Show the running system — 2 minutes
+## Running system
 
-These commands inspect the existing local deployment without revealing its
-token. They assume Colima, the cluster, and the app are already running.
+The overview script displays the cluster, workload, endpoint responses, and
+security settings. It makes no deployment changes and does not display tokens.
+Colima, the cluster, and the app must already be running.
 
 ```sh
-colima status
-docker ps --filter name=echo-pong-control-plane
-kubectl --context kind-echo-pong get nodes -o wide
-kubectl --context kind-echo-pong -n echo-pong get deploy,pods,svc,ingress,pdb,networkpolicy
-
-# Public health works through the real ingress path.
-curl --fail -H 'Host: echo-pong.localhost' http://127.0.0.1:8080/health
-
-# Protected endpoint rejects missing credentials: expect HTTP 401.
-curl -sS -o /dev/null -w 'HTTP %{http_code}\n' \
-  -H 'Host: echo-pong.localhost' http://127.0.0.1:8080/ping
-
-# Supply the ignored local token through stdin, not command arguments or output.
-{ printf 'Authorization: Bearer '; tr -d '\n' < secrets/token; printf '\n'; } |
-  curl --fail --header @- -H 'Host: echo-pong.localhost' \
-    http://127.0.0.1:8080/ping
-
-kubectl --context kind-echo-pong -n echo-pong get deployment echo-pong \
-  -o jsonpath='{.spec.template.spec.securityContext}{"\n"}{.spec.template.spec.containers[0].securityContext}{"\n"}'
+scripts/demo.sh overview
 ```
 
-Explain the security settings: UID/GID 65532, read-only root filesystem, no Linux
+Runtime security includes UID/GID 65532, read-only root filesystem, no Linux
 capabilities, no privilege escalation, default seccomp, and no mounted Kubernetes
 API token. The authentication token is a separate group-readable Secret volume,
 not an image layer or a tracked file. The app reads it at startup, so rotation
 requires a coordinated restart; overlapping old/new replicas can accept different
 tokens during rotation.
 
-## 4. Demonstrate availability and isolation — 2 minutes
+## Availability and isolation
 
-Use the recorded validation results for a short demo. Optionally rerun these
-checks if time permits. They mutate the local cluster: the first restarts app pods; the second
-temporarily creates diagnostic resources and an allow-policy control, then cleans
-them up. Neither is intended to target a production cluster.
+Recorded results are available in [the validation report](../VALIDATION.md).
+Live checks are available as separate demo modes:
 
 ```sh
-python3 scripts/check-rollout.py --url http://127.0.0.1:8080
-scripts/verify-network.sh
+scripts/demo.sh rollout
+scripts/demo.sh network
 ```
+
+The rollout mode restarts application pods. The network mode temporarily creates
+diagnostic resources and an allow-policy control, then cleans them up. Both target
+only the local `kind-echo-pong` cluster. `scripts/demo.sh all` runs the overview,
+rollout, and network checks in sequence.
 
 The rollout check sends authenticated requests through Traefik while restarting
 the Deployment. It reports observed failures rather than relying on pod status.
@@ -125,7 +110,7 @@ The network check first proves its client/destination can communicate, then
 checks rejection after policy enforcement. Its egress test uses an actual app
 pod's network namespace; testing an unrelated pod would not prove app isolation.
 
-Explain the rollout settings together:
+The rollout settings work together:
 
 | Setting | Reason |
 | --- | --- |
@@ -142,7 +127,7 @@ active requests, so the server now handles SIGTERM/SIGINT and waits for HTTP
 shutdown. Race-enabled tests cover actual in-flight request completion and forced
 connection closure when the drain deadline expires; vet also passes.
 
-## 5. Explain the image and release design — 1 minute
+## Image and release design
 
 The builder runs on its native CPU and cross-compiles static Go binaries with
 `CGO_ENABLED=0` for Linux AMD64 and ARM64. The compiler image is pinned by digest.
@@ -164,38 +149,8 @@ A private package would protect access to proprietary images, but needs read-onl
 registry credentials provisioned as an image-pull Secret, referenced by the
 service account, and rotated. The app authentication Secret is separate.
 
-## 6. Handle likely follow-up questions — 1–2 minutes
+## Further discussion
 
-**How would you scale?** The server is stateless, so add replicas behind the same
-Service. Use measured resource requests and an HPA once metrics and a target load
-are available, then provide node capacity through a node autoscaler. Prefer ARM64
-and spread replicas across nodes and availability zones. The current preferences
-allow both replicas on one laptop node; they do not provide node redundancy.
-
-**What changes on EKS?** Keep the application image and most manifests. Provision
-private worker nodes across availability zones, registry connectivity, suitable
-cluster access/RBAC, secret management, and a CNI configured to enforce network
-policies. Terminate TLS at a supported ingress/load-balancer boundary and update
-the app's ingress policy to match that traffic path. Revalidate pod draining and
-load-balancer health during rollouts. Assign IAM permissions to controllers that
-need AWS APIs; this app itself currently needs none. This is a design discussion,
-not provisioned infrastructure. See the [EKS security guide](https://docs.aws.amazon.com/eks/latest/best-practices/security.html)
-and [workload identity guidance](https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html).
-
-**How can teams around the world pull images quickly?** Keep GHCR as the required
-release registry, then mirror approved images into regional private ECR
-repositories close to consumers. ECR supports [cross-region replication](https://docs.aws.amazon.com/AmazonECR/latest/userguide/registry-settings-configure.html).
-Copy from the approved GHCR digest into ECR before replication, verifying both
-the index and platform manifests. An alternative is a regional
-[ECR pull-through cache for GHCR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html),
-which requires upstream credentials in AWS Secrets Manager and has a first-pull
-cache miss. No AWS resources have been created.
-
-**How do versions and cleanup work?** Use semantic release tags plus immutable
-commit identifiers for traceability, and digests for deployment. Retain deployed
-and rollback digests, their platform manifests, release binaries, and provenance.
-Expire unreferenced development images and caches on a documented schedule.
-Apply lifecycle policies separately to regional mirrors; coordinate deletions
-with deployment inventory so cleanup cannot remove an image still needed by a
-new node or rollback. Automated tagging, cleanup, and retention remain pending.
-
+[Technical questions and answers](QUESTIONS_AND_ANSWERS.md) covers the design
+choices, scaling strategy, EKS approach, regional image distribution, and retention.
+Cloud infrastructure and release automation remain planned.
