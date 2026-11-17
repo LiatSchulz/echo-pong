@@ -21,8 +21,9 @@ publication remains on hold pending the registry visibility decision.
 | Ingress rolling restart: 1,106 requests, zero observed failures | New-version release rollout and rollback automation |
 | Positive and negative network controls | Multi-node failure recovery, load tests, cloud deployment |
 
-AMD64 runtime checks used emulation on this ARM64 Mac. A successful scan is a
-dated observation, not a permanent statement about an image's vulnerabilities.
+Initial AMD64 checks used emulation on the ARM64 Mac; CI now also smoke-tests
+both architectures on native runners. A successful scan is a dated observation,
+not a permanent statement about an image’s vulnerabilities.
 
 ## Runtime architecture
 

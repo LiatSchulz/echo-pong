@@ -19,8 +19,8 @@ Debugging uses separate diagnostic containers rather than tools in the app image
 
 **How are both architectures supported?** The builder runs natively and Go
 cross-compiles Linux amd64 and arm64 with CGO disabled. Both images were built,
-scanned, and smoke-tested. AMD64 execution used emulation; native AMD64 performance
-has not been measured. A combined registry image index remains release work.
+scanned, and smoke-tested. Initial Mac AMD64 execution used emulation; CI now
+also runs both architectures natively. Production performance has not been measured. A combined registry image index remains release work.
 
 **Why pin the compiler image by digest?** A digest fixes the exact builder content
 used for the build. Updates become deliberate changes followed by rebuilding and

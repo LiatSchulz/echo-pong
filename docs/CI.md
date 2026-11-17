@@ -3,6 +3,21 @@
 CI validates source changes and a disposable local deployment. Registry
 publication is deliberately excluded while GHCR visibility is undecided.
 
+## Check flow
+
+```mermaid
+flowchart LR
+    Change["Pull request / main update"] --> Source["Go checks + secret scan + binary preparation"]
+    Change --> AMD["Native AMD64 image: build, scan, smoke test"]
+    Change --> ARM["Native ARM64 image: build, scan, smoke test"]
+    Change --> Kind["Kind: manifests, ingress rollout, network policy"]
+    Source --> Review["CI results for review"]
+    AMD --> Review
+    ARM --> Review
+    Kind --> Review
+    Review -. "Future release workflow" .-> Hold["GHCR and release publication: on hold"]
+```
+
 ## Checks
 
 | Workflow | Purpose |
@@ -44,5 +59,6 @@ After the visibility decision, release work must:
 ## Evidence
 
 Executed checks and known limits belong in [the validation report](../VALIDATION.md).
-Workflow files alone are not evidence of a successful hosted run. The next review
+The first hosted CI and integration runs passed; direct links and rollout metrics
+are recorded in that report. Workflow files alone are not execution evidence. The next review
 and release tasks are in [tomorrow’s checklist](TOMORROW.md).

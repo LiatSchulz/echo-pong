@@ -63,7 +63,7 @@ is replaced. Both scripts explicitly target the local cluster.
   observability, and cloud load-balancer readiness need environment-specific work.
 - Images were loaded locally. GHCR publication, anonymous registry pulls,
   multi-platform index publication, and binary releases are not implemented.
-  CI workflows are defined; their hosted run evidence is recorded below. GHCR visibility is undecided, and publication is on hold.
+  CI workflows passed hosted validation; evidence is recorded below. GHCR visibility is undecided, and publication is on hold.
 - Network denial tests cover specific paths with positive controls. The intended
   policy is no application egress and ingress only from the proxy; node-level
   image pulls remain outside application NetworkPolicy.
@@ -74,5 +74,17 @@ is replaced. Both scripts explicitly target the local cluster.
 
 [CI workflows](docs/CI.md) add Go, secret, image, binary-preparation, and disposable
 Kind deployment checks. Registry login, image publication, artifact uploads,
-version tags, and GitHub Releases are excluded. Hosted execution results will be
-recorded here after the review branch is pushed.
+version tags, and GitHub Releases are excluded. Hosted validation passed for revision `e5c326d`:
+
+- [CI run](https://github.com/LiatSchulz/echo-pong/actions/runs/44103276431): Go
+  formatting/vet/race tests, full-history Gitleaks scan, native AMD64 and ARM64
+  image builds, Trivy gates, HTTP/CLI smoke tests, and binary archives/checksums passed.
+- [Integration run](https://github.com/LiatSchulz/echo-pong/actions/runs/44103277116):
+  all manifests rendered, server-side validation and deployment passed, ingress
+  rolling restart served **1,585 requests with zero failures**, and ingress/egress
+  policy checks passed with positive controls. The disposable cluster was removed.
+
+Actionlint, ShellCheck, shell syntax, documentation-link checks, and local binary
+build/checksum verification also passed. Native hosted AMD64 execution now
+complements the earlier emulated workstation checks. New-version upgrades,
+registry pulls, and release publication remain unverified.

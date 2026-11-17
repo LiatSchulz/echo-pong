@@ -2,7 +2,8 @@
 
 ## Review the CI changes
 
-- Review the next PR, workflow permissions, security gates, and actual Actions results.
+- Review [PR #3](https://github.com/LiatSchulz/echo-pong/pull/3), workflow permissions,
+  security gates, and actual Actions results.
 - Check the updated [reviewer guide](START_HERE.md),
   [validation report](../VALIDATION.md), and [presentation](PRESENTATION.md).
 - Address review feedback before merging.
