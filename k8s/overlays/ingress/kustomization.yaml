@@ -3,4 +3,4 @@ kind: Kustomization
 namespace: echo-pong
 resources:
   - ../../base
-  - ingress.yaml
+  - ../../components/ingress
