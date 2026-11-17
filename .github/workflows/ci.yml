@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-and-secrets:
+    name: Go checks and secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: '1.27.4'
+          cache: false # No third-party Go dependencies or go.sum.
+      - name: Check formatting, vet, and race tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race ./...
+      - name: Install checksum-pinned security tools
+        run: scripts/install-ci-tools.sh "$RUNNER_TEMP/security-tools"
+      - name: Scan complete Git history for secrets
+        run: gitleaks git --redact --exit-code 1 --log-opts="--all" .
+      - name: Build binary archives and verify checksums
+        run: scripts/build-binaries.sh
+
+  images:
+    name: Image (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install checksum-pinned security tools
+        run: scripts/install-ci-tools.sh "$RUNNER_TEMP/security-tools"
+      - name: Build native image without publishing
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: docker build --platform "linux/$ARCH" --tag echo-pong:ci .
+      - name: Block HIGH and CRITICAL image vulnerabilities
+        run: trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 echo-pong:ci
+      - name: Exercise restricted HTTP and CLI runtime
+        run: python3 scripts/check-container.py echo-pong:ci
