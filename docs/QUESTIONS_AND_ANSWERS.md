@@ -71,7 +71,7 @@ pull images; application NetworkPolicy governs pod traffic. Node registry
 connectivity is separate. Current local images are loaded into Kind, so actual
 GHCR pulls remain to be validated after publication.
 
-**Public or private GHCR?** Visibility is undecided and publication is on hold.
+**Public or private GHCR?** Public GHCR is selected for this demonstration.
 Public images simplify developer access
 and anonymous cluster pulls. Private images provide access control for proprietary
 artifacts, but need read-only pull credentials and credential lifecycle management.

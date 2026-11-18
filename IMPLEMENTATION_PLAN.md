@@ -29,7 +29,7 @@ Runtime contract: port 8080; UID/GID 65532; executable `/ping-pong`; secret file
 - Tag-driven releases: amd64/arm64 binaries and checksums, both container platform scans, GHCR publication, GitHub Release assets.
 - Gate production promotion on HIGH/CRITICAL vulnerability results; do not publish production tags before all platform gates pass.
 - Use immutable image digests for deployments; make rollout and rollback reproducible.
-- Registry visibility is undecided. Hold GHCR authentication and publication until the access model is confirmed; then validate cluster pulls.
+- Public GHCR is approved. Publish scanned releases and verify anonymous cluster pulls.
 - Document the deployment automation boundary: an ephemeral CI cluster validates deployment, while a persistent target requires explicit cluster access and configuration.
 - Write the operational runbook: scaling, EKS, regional AWS image distribution, versioning, rollback, and cleanup that preserves deployed versions.
 - Record real validation results and unresolved limitations. Do not claim unexecuted checks passed.
