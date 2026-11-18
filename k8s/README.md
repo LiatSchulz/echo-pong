@@ -23,15 +23,29 @@ See [release details](../docs/RELEASES.md).
 
 The application requires a Secret named `echo-pong-auth` containing a `token` key.
 Create it outside Git. The following generates a local development token without
-placing its value in command arguments or terminal output:
+placing its value in command arguments or terminal output. First create the
+`kind-echo-pong` cluster using the local setup command below:
 
 ```sh
-kubectl apply -f k8s/base/namespace.yaml
+kubectl --context kind-echo-pong apply -f k8s/base/namespace.yaml
 umask 077
 mkdir -p secrets
-openssl rand -hex 32 > secrets/token
-kubectl -n echo-pong create secret generic echo-pong-auth --from-file=token=secrets/token
+if [ ! -e secrets/token ]; then
+  openssl rand -hex 32 > secrets/token
+fi
+test -s secrets/token || { echo 'Existing secrets/token is empty; provision a token first.' >&2; exit 1; }
+chmod 600 secrets/token
+kubectl --context kind-echo-pong -n echo-pong create secret generic echo-pong-auth \
+  --from-file=token=secrets/token --dry-run=client -o yaml |
+  kubectl --context kind-echo-pong apply -f -
 ```
+
+These commands preserve an existing local token and create or update the cluster
+Secret to match it. If the cluster Secret previously held a different value,
+restart the Deployment after updating it:
+`kubectl --context kind-echo-pong -n echo-pong rollout restart deployment/echo-pong`.
+The local token and the token loaded by running pods must match for authenticated
+checks to pass. Updating the Secret alone does not reload the running application.
 
 `secrets/` is already ignored by Git. Do not add token files or generated Secret
 YAML to the repository. For production, provision this Secret through the
@@ -70,9 +84,9 @@ After provisioning the auth Secret as described above:
 docker build -t echo-pong:local .
 kind load docker-image echo-pong:local --name echo-pong
 kubectl kustomize k8s/overlays/local
-kubectl apply -k k8s/overlays/local
-kubectl -n echo-pong rollout status deployment/echo-pong --timeout=180s
-kubectl -n echo-pong get pods -o wide
+kubectl --context kind-echo-pong apply -k k8s/overlays/local
+kubectl --context kind-echo-pong -n echo-pong rollout status deployment/echo-pong --timeout=180s
+kubectl --context kind-echo-pong -n echo-pong get pods -o wide
 curl --fail -H 'Host: echo-pong.localhost' http://127.0.0.1:8080/health
 ```
 
@@ -93,7 +107,7 @@ request without putting the token in process arguments:
   curl --fail --header @- -H 'Host: echo-pong.localhost' http://127.0.0.1:8080/ping
 ```
 
-For troubleshooting, `kubectl -n echo-pong port-forward service/echo-pong 18080:80`
+For troubleshooting, `kubectl --context kind-echo-pong -n echo-pong port-forward service/echo-pong 18080:80`
 provides an authenticated administrative proxy on port 18080. It
 does not validate ingress routing, Service load balancing, or NetworkPolicy
 enforcement and is unsuitable for a rolling-availability test.
@@ -103,11 +117,14 @@ enforcement and is unsuitable for a rolling-availability test.
 For a public GHCR package, nodes can pull anonymously. For a private package,
 provision a `kubernetes.io/dockerconfigjson` Secret named `ghcr-pull` in the
 `echo-pong` namespace using a credential with read-only package access; never
-commit its value. Configure the dedicated service account before starting pods:
+commit its value. Select the intended context explicitly, then configure the
+dedicated service account before starting pods. This example uses the local
+cluster; change `target_context` for another environment:
 
 ```sh
-kubectl apply -f k8s/base/service-account.yaml -n echo-pong
-kubectl patch serviceaccount echo-pong -n echo-pong --type=merge \
+target_context=kind-echo-pong
+kubectl --context "$target_context" apply -f k8s/base/service-account.yaml -n echo-pong
+kubectl --context "$target_context" patch serviceaccount echo-pong -n echo-pong --type=merge \
   -p '{"imagePullSecrets":[{"name":"ghcr-pull"}]}'
 ```
 
@@ -157,14 +174,15 @@ Two replicas and preferred hostname anti-affinity spread pods when nodes are
 available, while permitting a single-node laptop cluster. ARM64 nodes are
 preferred, not required. Requests are initial sizing estimates; measure under
 load before tuning limits or enabling an HPA with a metrics server. Scale with
-`kubectl -n echo-pong scale deployment echo-pong --replicas=3` for manual testing.
+`kubectl --context kind-echo-pong -n echo-pong scale deployment echo-pong --replicas=3` for manual testing.
 
 RollingUpdate allows one additional pod and zero unavailable replicas. New pods
 receive up to 60 seconds for startup (including the intentional 10-second wait),
 then must remain ready for five seconds before an old replica is replaced. The
 cluster must have spare capacity for the extra pod. A failed new revision stalls
 the rollout while old healthy replicas remain; the deployment deadline reports
-failure and does not automatically roll back. Use `kubectl rollout undo` or
+failure and does not automatically roll back. For the local deployment, use
+`kubectl --context kind-echo-pong -n echo-pong rollout undo deployment/echo-pong` or
 redeploy the prior approved digest after investigating.
 
 The disruption budget retains one available replica during voluntary evictions;

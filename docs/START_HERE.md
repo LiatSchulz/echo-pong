@@ -5,7 +5,8 @@ currently provides secure container builds and a tested local Kubernetes
 deployment. CI adds source/security checks and disposable-cluster validation;
 [v0.1.0](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0) publishes a
 multi-architecture GHCR image and Linux binary archives. The [release guide](RELEASES.md)
-and validation report record publication evidence and remaining checks.
+and validation report record publication and deployment evidence. The original
+README checkboxes are preserved as the brief, rather than a live progress tracker.
 
 ## Review path
 
@@ -16,7 +17,7 @@ and validation report record publication evidence and remaining checks.
    commands to reproduce the checks.
 4. **Design discussion:** [technical questions and answers](QUESTIONS_AND_ANSWERS.md).
 5. **Automation:** [CI checks and publication boundary](CI.md).
-6. **Remaining work:** [implementation plan](../IMPLEMENTATION_PLAN.md).
+6. **Release operations:** [versioning, access, and retention](RELEASES.md).
 
 ## Architecture at a glance
 
@@ -41,14 +42,14 @@ Colima, Docker, Kind nodes, and containerd.
 
 ## Requirements and evidence
 
-“Verified” means a local check was executed; it does not imply production
+“Verified” means the documented local or hosted check was executed; it does not imply production
 certification. Reported results and their scope are recorded in the validation report.
 
 | Requirement | Implementation | Evidence / status |
 |---|---|---|
 | Non-root containers | [Dockerfile](../Dockerfile), [Deployment](../k8s/base/deployment.yaml) | Application defaults to UID/GID 65532; restricted runtime smoke tests passed |
 | Filesystem isolation | [Deployment](../k8s/base/deployment.yaml), [container check](../scripts/check-container.py) | Read-only root filesystem, dropped capabilities, mounted read-only token; verified |
-| No committed credentials | [ignore rules](../.gitignore), [secret provisioning](../k8s/README.md#secret-provisioning) | Tokens generated locally and provisioned separately; Full-history CI secret scan passed |
+| No committed credentials | [ignore rules](../.gitignore), [secret provisioning](../k8s/README.md#secret-provisioning) | Tokens generated locally and provisioned separately; full-history CI secret scan passed |
 | Image scanning | [image checks](../scripts/check-images.sh) | Both application architectures passed the HIGH/CRITICAL vulnerability gate |
 | Prevent vulnerable releases | Local scanner exits on HIGH/CRITICAL findings | Release v0.1.0 passed CI and both architecture image/binary scan gates before publication |
 | Rolling availability | [Deployment](../k8s/base/deployment.yaml), [shutdown handling](../main.go), [rollout check](../scripts/check-rollout.py) | Restart: 1,106 requests; release image update: 1,067; rollback: 1,013; zero observed failures in each check |
@@ -57,14 +58,13 @@ certification. Reported results and their scope are recorded in the validation r
 | Ingress/proxy access and isolation | [Ingress](../k8s/components/ingress/), [NetworkPolicy](../k8s/base/network-policy.yaml) | Real ingress access and denied foreign ingress/app egress verified with positive controls |
 | Multi-architecture builds | [Dockerfile](../Dockerfile), [image checks](../scripts/check-images.sh) | Linux AMD64/ARM64 built, scanned, and smoke-tested on native CI runners; initial Mac AMD64 checks used emulation |
 | GHCR storage and cluster pulls | Public GHCR selected; [registry approach](../k8s/README.md#registry-images) | Public v0.1.0: anonymous pull verified; actual ARM64 Kind pull with Always and no imagePullSecrets matched published runtime image IDs |
-| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | [v0.1.0 published](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0): multi-platform index, two Linux binary archives, checksums, and digest file; both downloaded binary archives passed published checksums |
+| Versioned container and binary releases | [release workflow](../.github/workflows/release.yml) | [v0.1.0 published](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0): multi-platform index, two Linux binary archives, checksums, and digest file; both downloaded binary archives passed published checksums |
 | EKS, scaling, regional distribution, retention | [technical Q&A](QUESTIONS_AND_ANSWERS.md) | Design documented; AWS resources and lifecycle automation not provisioned |
 
 ## Quick start and demo
 
 Run from the repository root. Required tools: a running Linux Docker engine,
-Kind, kubectl, Helm, curl, and OpenSSL. The overview demo currently also expects
-Colima on macOS. Full validation additionally uses Go, Python 3, and Trivy.
+Kind, kubectl, Helm, curl, and OpenSSL. On macOS, Colima or another Linux container runtime is required. Full validation additionally uses Go, Python 3, and Trivy.
 The tested local VM has 2 CPUs and 4 GiB RAM; local port 8080 must be available.
 
 This path builds the native image and deploys the local environment. It does not
@@ -116,4 +116,25 @@ Optional live demonstrations:
   measured resource sizing remain environment-specific work.
 - Cloud deployment is a documented design; no paid AWS resources were created.
 
-Next steps are tracked in [tomorrow’s checklist](TOMORROW.md).
+## Requirement scope
+
+The original [README](../README.md) is preserved as the requirements reference.
+The matrix above covers all application build, release, and deployment deliverables.
+These boundaries matter when interpreting production-oriented wording:
+
+- Non-root enforcement and vulnerability release gates cover the shipped application
+  runtime images and binaries. The builder, Kind node, and upstream networking/ingress
+  infrastructure images are not all scanned by this pipeline; some infrastructure
+  components require privileged or root operation.
+- Automated deployment runs in a disposable Kind cluster. Deploying a published
+  digest to a persistent environment and rolling it back are operator-run scripts,
+  demonstrated locally. There is no configured persistent production target.
+- Zero observed request failures during tested updates is evidence for rolling
+  availability, not an all-failures availability guarantee. The local cluster has
+  one node and production fault tolerance has not been established.
+- `go.mod` retains the original Go 1.24 language minimum. CI and image builds use
+  a pinned newer compiler so the shipped Go standard library can receive security fixes.
+
+EKS provisioning is not required by the original deliverables; its deployment
+approach is documented for discussion. Automated stale-image cleanup is deferred
+by scope; retention and rollback protection are documented in the release guide.

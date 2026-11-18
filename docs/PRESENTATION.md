@@ -166,5 +166,5 @@ authentication Secret is separate from registry credentials.
 
 [Technical questions and answers](QUESTIONS_AND_ANSWERS.md) covers the design
 choices, scaling strategy, EKS approach, regional image distribution, and retention.
-Release v0.1.0 is published; cloud infrastructure remains planned. Review and release
-follow-up are tracked in [tomorrow’s checklist](TOMORROW.md).
+Release v0.1.0 is published; cloud infrastructure remains a documented design.
+[Requirement scope](START_HERE.md#requirement-scope) records the operational boundaries.

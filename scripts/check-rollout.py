@@ -9,6 +9,7 @@ import subprocess
 import threading
 import time
 import urllib.request
+import uuid
 
 
 def main():
@@ -58,9 +59,12 @@ def main():
                 if results['requests'] == 0 or results['failures']:
                     raise RuntimeError('Ingress traffic failed before rollout')
             if args.image:
-                patch = {'spec': {'template': {'spec': {'containers': [
-                    {'name': 'echo-pong', 'image': args.image, 'imagePullPolicy': 'Always'}
-                ]}}}}
+                patch = {'spec': {'template': {
+                    'metadata': {'annotations': {'echo-pong.dev/rollout-check': uuid.uuid4().hex}},
+                    'spec': {'containers': [
+                        {'name': 'echo-pong', 'image': args.image, 'imagePullPolicy': 'Always'}
+                    ]}
+                }}}
                 subprocess.run(command + ['patch', 'deployment', 'echo-pong', '--type=strategic',
                                           '-p', json.dumps(patch)], check=True)
             elif args.rollback:

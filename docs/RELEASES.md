@@ -21,7 +21,9 @@ recorded in [validation](../VALIDATION.md).
 - The workflow pushes the same locally scanned images, then creates the combined
   AMD64/ARM64 index. It does not rebuild images after scanning.
 - Version tags identify a release; deployments use immutable image digests.
-- Existing release versions must not be overwritten.
+- The publishing workflow refuses existing release versions. This is a workflow
+  safeguard, not registry-enforced protection against an account owner changing a tag.
+  Deployment digests identify the exact content independently of tag changes.
 
 ## Distribution
 
@@ -68,3 +70,11 @@ scripts/verify-release.sh ghcr.io/liatschulz/echo-pong@sha256:9808ef4a2c2b0451db
 ```
 
 The script targets the local cluster and restores its prior image after testing.
+
+## Production handoff
+
+CI automatically deploys to disposable Kind before release publication. The
+workstation release verification script demonstrates a published-digest update
+and rollback; a persistent deployment target is not configured. A real production
+pipeline would require environment-specific access, rollout checks, and an
+explicit promotion policy.
