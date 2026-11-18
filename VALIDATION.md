@@ -1,4 +1,4 @@
-# Local validation
+# Validation evidence
 
 Executed on 2026-11-17 using an Apple Silicon Mac, Colima (2 CPUs, 4 GiB),
 Docker, and a single-node ARM64 Kind cluster. No AWS resources were created.
@@ -67,8 +67,8 @@ is replaced. Both scripts explicitly target the local cluster.
 - Network denial tests cover specific paths with positive controls. The intended
   policy is no application egress and ingress only from the proxy; node-level
   image pulls remain outside application NetworkPolicy.
-- The original README remains the project requirements reference. The implementation
-  plan tracks the remaining release work.
+- The original README remains the requirements reference; the reviewer guide
+  maps each requirement to implementation, evidence, and scope limitations.
 
 ## CI phase
 
@@ -87,7 +87,8 @@ version tags, and GitHub Releases are excluded. Hosted validation passed for rev
 Actionlint, ShellCheck, shell syntax, documentation-link checks, and local binary
 build/checksum verification also passed. Native hosted AMD64 execution now
 complements the earlier emulated workstation checks. New-version upgrades,
-registry pulls remained pending at that phase; release publication is now verified below.
+registry pulls were not part of that initial run; both pulls and publication
+are verified in the release phase below.
 
 ## Release phase
 
@@ -121,3 +122,27 @@ The base Deployment now references the scanned release digest; the local overlay
 still supports local image loading. The live demo was reconciled to the published
 release after rollback validation. Production fault tolerance and load capacity
 remain outside these checks.
+
+## Final repository review
+
+Compared tracked implementation and documentation against the original README
+at commit `10630de`. The requirement matrix and explicit interpretation limits
+are in [the reviewer guide](docs/START_HERE.md#requirement-scope).
+
+Small operational fixes were validated on 2026-11-18:
+
+- Repeating release verification with the same digest and `Always` policy creates
+  its own rollout revision before undo. The regression test served 1,108 update
+  requests and 1,090 rollback requests with zero observed failures, restoring the
+  prior image and pull policy.
+- Repeated secret provisioning preserved the existing local token and matched the
+  cluster Secret on two consecutive runs. No token was printed or rotated.
+- The two-platform image build/scan script passed and selected the native ARM64
+  image for the local Docker engine. AMD64 selection is supported by the same
+  explicit architecture mapping but was not rerun on a separate x86 workstation.
+- Workflow linting, ShellCheck, shell/Python syntax, all Kustomize entrypoints,
+  documentation links, and whitespace checks passed.
+
+Completed planning/checklist files and empty directory placeholders were removed.
+The application, original requirements text, and published v0.1.0 artifacts were
+not changed by this cleanup.

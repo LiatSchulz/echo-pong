@@ -31,8 +31,8 @@ test application are generated during the run and are not production credentials
 No registry credentials are needed.
 
 Container vulnerability checks fail on HIGH/CRITICAL findings. Failure blocks a
-successful CI result; publication cannot be considered protected until a release
-workflow depends on these checks. Branch protection is separate repository
+successful CI result. The release workflow depends on these checks and rescans
+its actual image and binary outputs before publication. Branch protection is separate repository
 configuration and has not been enabled by these files.
 
 ## Deployment boundary
@@ -60,5 +60,5 @@ rollout/rollback were verified. See the validation report for exact evidence.
 
 Executed checks and known limits belong in [the validation report](../VALIDATION.md).
 The first hosted CI and integration runs passed; direct links and rollout metrics
-are recorded in that report. Workflow files alone are not execution evidence. The next review
-and release tasks are in [tomorrow’s checklist](TOMORROW.md).
+are recorded in that report. Workflow files alone are not execution evidence. [Requirement scope](START_HERE.md#requirement-scope)
+distinguishes application release controls from infrastructure and production operations.
