@@ -51,8 +51,8 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: echo-pong
-          # Deliberate placeholder: select a scanned release digest before deployment.
-          image: ghcr.io/liatschulz/echo-pong:unreleased
+          # Approved multi-platform release v0.1.0.
+          image: ghcr.io/liatschulz/echo-pong@sha256:9808ef4a2c2b0451db33b6ccbcb6fdc4f935d2f803bf54c35ebe5bd43f59c2f0
           imagePullPolicy: IfNotPresent
           args: ["--mode=server"]
           ports:
