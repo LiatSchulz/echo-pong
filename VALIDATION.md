@@ -62,8 +62,8 @@ is replaced. Both scripts explicitly target the local cluster.
 - Resource requests and limits remain initial estimates. HPA, production TLS,
   observability, and cloud load-balancer readiness need environment-specific work.
 - Images were loaded locally. GHCR publication, anonymous registry pulls,
-  multi-platform index publication, and binary releases are not implemented.
-  CI workflows passed hosted validation; evidence is recorded below. GHCR visibility is undecided, and publication is on hold.
+  multi-platform index publication, and binary release execution remain unverified.
+  CI workflows passed hosted validation; evidence is recorded below. Public GHCR is approved for reviewer access; release execution is tracked below.
 - Network denial tests cover specific paths with positive controls. The intended
   policy is no application egress and ingress only from the proxy; node-level
   image pulls remain outside application NetworkPolicy.
@@ -88,3 +88,10 @@ Actionlint, ShellCheck, shell syntax, documentation-link checks, and local binar
 build/checksum verification also passed. Native hosted AMD64 execution now
 complements the earlier emulated workstation checks. New-version upgrades,
 registry pulls, and release publication remain unverified.
+
+## Release phase
+
+The [tagged release workflow](.github/workflows/release.yml) and
+[registry-backed deployment check](scripts/verify-release.sh) are implemented.
+Static workflow and shell checks passed. The first tagged publication, public
+package visibility, anonymous pulls, upgrade, and rollback still require execution.

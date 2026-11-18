@@ -1,7 +1,7 @@
 # Continuous integration
 
-CI validates source changes and a disposable local deployment. Registry
-publication is deliberately excluded while GHCR visibility is undecided.
+CI validates source changes and a disposable local deployment. A separate
+version-tag release workflow handles approved public GHCR and binary publication.
 
 ## Check flow
 
@@ -15,7 +15,7 @@ flowchart LR
     AMD --> Review
     ARM --> Review
     Kind --> Review
-    Review -. "Future release workflow" .-> Hold["GHCR and release publication: on hold"]
+    Review -. "Version-tag workflow requires successful checks" .-> Release["Gated GHCR and binary publication"]
 ```
 
 ## Checks
@@ -44,17 +44,17 @@ not only accepted YAML. Failure diagnostics exclude Secrets and credential files
 
 ## Publication boundary
 
-This phase does not authenticate to GHCR, push container images, upload container
-archives, create version tags, or publish GitHub Releases. Binary archives and
-checksums are prepared and checked in the job workspace only.
+Pull-request validation does not publish images, tags, or GitHub Releases. The
+separate release workflow requires a strict version tag from `main`, repeats the
+required CI and deployment gates, and scans the actual release outputs before
+publishing. Only the publication job receives package/release write permissions.
 
-After the visibility decision, release work must:
-
-1. Validate the version tag and source revision.
-2. Require successful tests and security gates for both architectures.
-3. Publish the approved image index and binary release assets.
-4. Record immutable digests and verify pulls using the selected access model.
-5. Validate new-version rollout and rollback before marking deployment successful.
+Public images are owned by `LiatSchulz` and stored at
+`ghcr.io/liatschulz/echo-pong`. Publication uses the workflow's short-lived
+`GITHUB_TOKEN`; no personal publishing token is stored in the repository.
+[Release details](RELEASES.md) describe versions, immutable deployment digests,
+access, and cleanup scope. Actual publication remains unverified until a tagged
+run succeeds and the package is publicly pullable.
 
 ## Evidence
 

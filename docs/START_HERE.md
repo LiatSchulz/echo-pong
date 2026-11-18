@@ -3,7 +3,8 @@
 Echo Pong is a Go HTTP service and CLI with token authentication. The repository
 currently provides secure container builds and a tested local Kubernetes
 deployment. CI adds source/security checks and disposable-cluster validation;
-release publishing is paused pending the registry visibility decision.
+public release publishing is approved and described in [the release guide](RELEASES.md).
+Publication evidence is recorded after the first successful tagged run.
 
 ## Review path
 
@@ -48,14 +49,14 @@ certification. Reported results and their scope are recorded in the validation r
 | Filesystem isolation | [Deployment](../k8s/base/deployment.yaml), [container check](../scripts/check-container.py) | Read-only root filesystem, dropped capabilities, mounted read-only token; verified |
 | No committed credentials | [ignore rules](../.gitignore), [secret provisioning](../k8s/README.md#secret-provisioning) | Tokens generated locally and provisioned separately; Full-history CI secret scan passed |
 | Image scanning | [image checks](../scripts/check-images.sh) | Both application architectures passed the HIGH/CRITICAL vulnerability gate |
-| Prevent vulnerable releases | Local scanner exits on HIGH/CRITICAL findings | CI release promotion gate not implemented yet |
+| Prevent vulnerable releases | Local scanner exits on HIGH/CRITICAL findings | Release workflow requires CI and scans all actual release outputs before publishing; tagged execution pending |
 | Rolling availability | [Deployment](../k8s/base/deployment.yaml), [shutdown handling](../main.go), [rollout check](../scripts/check-rollout.py) | Same-image rolling restart: 1,106 requests, zero observed failures |
 | Startup and health checks | [Deployment probes](../k8s/base/deployment.yaml) | Both replicas became ready with the intentional 10-second startup delay |
 | ARM64 preference | [node affinity](../k8s/base/deployment.yaml) | ARM64 cluster verified; affinity permits AMD64 fallback |
 | Ingress/proxy access and isolation | [Ingress](../k8s/components/ingress/), [NetworkPolicy](../k8s/base/network-policy.yaml) | Real ingress access and denied foreign ingress/app egress verified with positive controls |
 | Multi-architecture builds | [Dockerfile](../Dockerfile), [image checks](../scripts/check-images.sh) | Linux AMD64/ARM64 built, scanned, and smoke-tested on native CI runners; initial Mac AMD64 checks used emulation |
-| GHCR storage and cluster pulls | Visibility undecided; [registry approach](../k8s/README.md#registry-images) | Publication and actual registry pulls pending; local images currently loaded into Kind |
-| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | Binary archive/checksum preparation added; tag workflow, published index, and releases pending |
+| GHCR storage and cluster pulls | Public GHCR selected; [registry approach](../k8s/README.md#registry-images) | Publication and actual registry pulls pending; local images currently loaded into Kind |
+| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | Tag-driven release workflow added; first published index, binary release, and pull validation pending |
 | EKS, scaling, regional distribution, retention | [technical Q&A](QUESTIONS_AND_ANSWERS.md) | Design documented; AWS resources and lifecycle automation not provisioned |
 
 ## Quick start and demo

@@ -11,7 +11,8 @@ The application runs behind an ingress controller with two replicas, restricted
 containers, mounted authentication credentials, and enforced network isolation.
 Both CPU architectures have been built and tested. Rolling restart availability
 and network isolation have been verified through local integration checks. CI runs source/security checks and disposable-cluster integration. Release
-publication remains on hold pending the registry visibility decision.
+publication uses a separate gated version-tag workflow. Actual tagged release
+execution is tracked in the validation report.
 
 | Demonstrated locally | Still to implement or validate |
 | --- | --- |
@@ -141,14 +142,13 @@ code, so compiler updates and binary vulnerability scanning matter.
 The [CI workflows](CI.md) validate pull requests without publishing releases.
 Native AMD64/ARM64 jobs build, scan, and smoke-test images; a separate job tests
 deployment on Kind. Binary archives and checksums are prepared in the job workspace.
-A future version-tag workflow must build both architectures, scan each, block promotion
+The [version-tag workflow](RELEASES.md) builds both architectures, scans each, and blocks promotion
 on HIGH/CRITICAL findings, publish one multi-platform image index to GHCR, and
 attach versioned binary archives and checksums to a GitHub Release. Production
 should deploy the approved index digest so each node chooses its architecture
-without tags moving underneath the deployment. This workflow is **planned**, not
-implemented yet.
+without tags moving underneath the deployment. The workflow is implemented; its first tagged publication remains unverified.
 
-GHCR package visibility is undecided, and publication is on hold. Public packages
+Public GHCR is selected for simple reviewer access. Public packages
 allow anonymous pulls. Private packages restrict access and require read-only
 pull credentials, service-account configuration, and rotation. The application
 authentication Secret is separate from registry credentials.
