@@ -2,7 +2,8 @@
 
 Echo Pong is a Go HTTP service and CLI with token authentication. The repository
 currently provides secure container builds and a tested local Kubernetes
-deployment. CI/CD and release publishing are the next phase.
+deployment. CI adds source/security checks and disposable-cluster validation;
+release publishing is paused pending the registry visibility decision.
 
 ## Review path
 
@@ -12,7 +13,8 @@ deployment. CI/CD and release publishing are the next phase.
 3. **Evidence and limits:** [validation report](../VALIDATION.md), including
    commands to reproduce the checks.
 4. **Design discussion:** [technical questions and answers](QUESTIONS_AND_ANSWERS.md).
-5. **Remaining work:** [implementation plan](../IMPLEMENTATION_PLAN.md).
+5. **Automation:** [CI checks and publication boundary](CI.md).
+6. **Remaining work:** [implementation plan](../IMPLEMENTATION_PLAN.md).
 
 ## Architecture at a glance
 
@@ -44,16 +46,16 @@ certification. Reported results and their scope are recorded in the validation r
 |---|---|---|
 | Non-root containers | [Dockerfile](../Dockerfile), [Deployment](../k8s/base/deployment.yaml) | Application defaults to UID/GID 65532; restricted runtime smoke tests passed |
 | Filesystem isolation | [Deployment](../k8s/base/deployment.yaml), [container check](../scripts/check-container.py) | Read-only root filesystem, dropped capabilities, mounted read-only token; verified |
-| No committed credentials | [ignore rules](../.gitignore), [secret provisioning](../k8s/README.md#secret-provisioning) | Tokens generated locally and provisioned separately; automated secret scanning pending |
+| No committed credentials | [ignore rules](../.gitignore), [secret provisioning](../k8s/README.md#secret-provisioning) | Tokens generated locally and provisioned separately; Full-history CI secret scan passed |
 | Image scanning | [image checks](../scripts/check-images.sh) | Both application architectures passed the HIGH/CRITICAL vulnerability gate |
 | Prevent vulnerable releases | Local scanner exits on HIGH/CRITICAL findings | CI release promotion gate not implemented yet |
 | Rolling availability | [Deployment](../k8s/base/deployment.yaml), [shutdown handling](../main.go), [rollout check](../scripts/check-rollout.py) | Same-image rolling restart: 1,106 requests, zero observed failures |
 | Startup and health checks | [Deployment probes](../k8s/base/deployment.yaml) | Both replicas became ready with the intentional 10-second startup delay |
 | ARM64 preference | [node affinity](../k8s/base/deployment.yaml) | ARM64 cluster verified; affinity permits AMD64 fallback |
 | Ingress/proxy access and isolation | [Ingress](../k8s/components/ingress/), [NetworkPolicy](../k8s/base/network-policy.yaml) | Real ingress access and denied foreign ingress/app egress verified with positive controls |
-| Multi-architecture builds | [Dockerfile](../Dockerfile), [image checks](../scripts/check-images.sh) | Linux AMD64/ARM64 built, scanned, and smoke-tested; AMD64 runtime used emulation |
-| GHCR storage and cluster pulls | Public GHCR selected; [registry approach](../k8s/README.md#registry-images) | Publication and actual registry pulls pending; local images currently loaded into Kind |
-| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | Tag workflow, combined image index, binary archives, and checksums pending |
+| Multi-architecture builds | [Dockerfile](../Dockerfile), [image checks](../scripts/check-images.sh) | Linux AMD64/ARM64 built, scanned, and smoke-tested on native CI runners; initial Mac AMD64 checks used emulation |
+| GHCR storage and cluster pulls | Visibility undecided; [registry approach](../k8s/README.md#registry-images) | Publication and actual registry pulls pending; local images currently loaded into Kind |
+| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | Binary archive/checksum preparation added; tag workflow, published index, and releases pending |
 | EKS, scaling, regional distribution, retention | [technical Q&A](QUESTIONS_AND_ANSWERS.md) | Design documented; AWS resources and lifecycle automation not provisioned |
 
 ## Quick start and demo
@@ -102,9 +104,12 @@ Optional live demonstrations:
 - The cluster has one node. Replica count and a passing restart check do not prove
   node-failure resilience or a general availability guarantee.
 - The rollout test replaces pods using the same image. New-version upgrades,
-  rollback, GHCR pulls, binary releases, and CI execution remain unverified.
+  rollback, GHCR pulls, and published binary releases remain unverified. CI
+  execution status is recorded in the validation report.
 - Vulnerability results are point-in-time observations. Release publication must
   re-scan both architectures and block promotion on HIGH/CRITICAL findings.
 - Local ingress uses HTTP on loopback. Production TLS, observability, HPA, and
   measured resource sizing remain environment-specific work.
 - Cloud deployment is a documented design; no paid AWS resources were created.
+
+Next steps are tracked in [tomorrow’s checklist](TOMORROW.md).

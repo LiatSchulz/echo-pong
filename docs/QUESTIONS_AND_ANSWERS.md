@@ -2,7 +2,8 @@
 
 Current implementation details and production design considerations for Echo Pong.
 Executed checks are recorded in [the validation report](../VALIDATION.md).
-CI/CD, GHCR publication, binary releases, and AWS deployment remain planned.
+CI checks and ephemeral-cluster validation are defined in [the CI guide](CI.md).
+GHCR publication, binary releases, and AWS deployment remain planned.
 
 ## Containers and local architecture
 
@@ -18,8 +19,8 @@ Debugging uses separate diagnostic containers rather than tools in the app image
 
 **How are both architectures supported?** The builder runs natively and Go
 cross-compiles Linux amd64 and arm64 with CGO disabled. Both images were built,
-scanned, and smoke-tested. AMD64 execution used emulation; native AMD64 performance
-has not been measured. A combined registry image index remains release work.
+scanned, and smoke-tested. Initial Mac AMD64 execution used emulation; CI now
+also runs both architectures natively. Production performance has not been measured. A combined registry image index remains release work.
 
 **Why pin the compiler image by digest?** A digest fixes the exact builder content
 used for the build. Updates become deliberate changes followed by rebuilding and
@@ -70,7 +71,8 @@ pull images; application NetworkPolicy governs pod traffic. Node registry
 connectivity is separate. Current local images are loaded into Kind, so actual
 GHCR pulls remain to be validated after publication.
 
-**Why public GHCR rather than private?** Public images simplify developer access
+**Public or private GHCR?** Visibility is undecided and publication is on hold.
+Public images simplify developer access
 and anonymous cluster pulls. Private images provide access control for proprietary
 artifacts, but need read-only pull credentials and credential lifecycle management.
 Neither option replaces vulnerability scanning or protects secrets baked into an

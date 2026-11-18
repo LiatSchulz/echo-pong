@@ -23,11 +23,13 @@ Runtime contract: port 8080; UID/GID 65532; executable `/ping-pong`; secret file
 
 ## Phase 3: CI/CD and releases
 
-- Pull-request checks: Go checks, container builds, manifest validation, vulnerability and secret scanning.
+- Pull-request checks implemented: Go checks, container builds, manifest validation, vulnerability and full-history secret scanning.
+- Ephemeral Kind deployment checks implemented; hosted execution evidence is recorded in `VALIDATION.md`.
+- Binary archive/checksum preparation implemented without artifact or release publication.
 - Tag-driven releases: amd64/arm64 binaries and checksums, both container platform scans, GHCR publication, GitHub Release assets.
 - Gate production promotion on HIGH/CRITICAL vulnerability results; do not publish production tags before all platform gates pass.
 - Use immutable image digests for deployments; make rollout and rollback reproducible.
-- Use a public GHCR package for developer access; validate anonymous cluster pulls after publication.
+- Registry visibility is undecided. Hold GHCR authentication and publication until the access model is confirmed; then validate cluster pulls.
 - Document the deployment automation boundary: an ephemeral CI cluster validates deployment, while a persistent target requires explicit cluster access and configuration.
 - Write the operational runbook: scaling, EKS, regional AWS image distribution, versioning, rollback, and cleanup that preserves deployed versions.
 - Record real validation results and unresolved limitations. Do not claim unexecuted checks passed.
@@ -46,3 +48,7 @@ Runtime contract: port 8080; UID/GID 65532; executable `/ping-pong`; secret file
 Use local infrastructure only. EKS deployment and regional AWS image distribution
 will be documented without provisioning paid resources. See `VALIDATION.md` for
 executed checks and remaining gaps.
+
+## Handoff
+
+See [tomorrow’s checklist](docs/TOMORROW.md) for review and release follow-up.
