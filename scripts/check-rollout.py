@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Measure HTTP availability through ingress during a local rolling restart."""
+"""Measure ingress availability during a restart, image update, or rollback."""
 import argparse
 import concurrent.futures
 import json
 import pathlib
+import re
 import subprocess
 import threading
 import time
@@ -15,7 +16,12 @@ def main():
     parser.add_argument('--url', required=True, help='Ingress URL, not a pod port-forward')
     parser.add_argument('--token-file', default='secrets/token')
     parser.add_argument('--host', default='echo-pong.localhost')
+    operation = parser.add_mutually_exclusive_group()
+    operation.add_argument('--image', help='Deploy an immutable IMAGE@sha256 digest and pull from the registry')
+    operation.add_argument('--rollback', action='store_true', help='Undo the previous deployment revision')
     args = parser.parse_args()
+    if args.image and not re.fullmatch(r'[^\s@]+@sha256:[a-f0-9]{64}', args.image):
+        parser.error('--image requires an immutable IMAGE@sha256:<64 hex characters> reference')
     token = pathlib.Path(args.token_file).read_text().strip()
     stop = threading.Event()
     lock = threading.Lock()
@@ -51,7 +57,16 @@ def main():
             with lock:
                 if results['requests'] == 0 or results['failures']:
                     raise RuntimeError('Ingress traffic failed before rollout')
-            subprocess.run(command + ['rollout', 'restart', 'deployment/echo-pong'], check=True)
+            if args.image:
+                patch = {'spec': {'template': {'spec': {'containers': [
+                    {'name': 'echo-pong', 'image': args.image, 'imagePullPolicy': 'Always'}
+                ]}}}}
+                subprocess.run(command + ['patch', 'deployment', 'echo-pong', '--type=strategic',
+                                          '-p', json.dumps(patch)], check=True)
+            elif args.rollback:
+                subprocess.run(command + ['rollout', 'undo', 'deployment/echo-pong'], check=True)
+            else:
+                subprocess.run(command + ['rollout', 'restart', 'deployment/echo-pong'], check=True)
             subprocess.run(command + ['rollout', 'status', 'deployment/echo-pong', '--timeout=180s'], check=True)
             time.sleep(5)
         finally:
@@ -60,8 +75,8 @@ def main():
                 future.result()
     print(json.dumps({**results, 'sample_errors': errors}))
     if results['requests'] == 0 or results['failures']:
-        raise SystemExit('FAIL: rolling restart interrupted ingress traffic')
-    print('PASS: rolling restart completed without observed HTTP failures')
+        raise SystemExit('FAIL: deployment change interrupted ingress traffic')
+    print('PASS: deployment change completed without observed HTTP failures')
 
 
 if __name__ == '__main__':
