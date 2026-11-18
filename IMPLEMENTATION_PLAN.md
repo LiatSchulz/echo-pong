@@ -21,7 +21,7 @@ Runtime contract: port 8080; UID/GID 65532; executable `/ping-pong`; secret file
 - Verify that the selected CNI enforces NetworkPolicy. A manifest accepted by the API is not evidence of traffic isolation.
 - Validate local image loading; actual registry pulls follow publication in Phase 3.
 
-## Phase 3: CI/CD and releases
+## Phase 3: CI/CD and releases (complete)
 
 - Pull-request checks implemented: Go checks, container builds, manifest validation, vulnerability and full-history secret scanning.
 - Ephemeral Kind deployment checks implemented; hosted execution evidence is recorded in `VALIDATION.md`.
@@ -52,3 +52,11 @@ executed checks and remaining gaps.
 ## Handoff
 
 See [tomorrow’s checklist](docs/TOMORROW.md) for review and release follow-up.
+
+## Final evidence
+
+Release `v0.1.0` is published. Anonymous registry pulls, published-image rollout,
+rollback, binary checksums, and the required CI/security gates passed.
+See [validation](VALIDATION.md) for exact references, metrics, and limitations.
+Automated stale-version deletion is deferred; retained release and rollback images
+are preserved.

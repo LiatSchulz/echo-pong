@@ -3,8 +3,9 @@
 Echo Pong is a Go HTTP service and CLI with token authentication. The repository
 currently provides secure container builds and a tested local Kubernetes
 deployment. CI adds source/security checks and disposable-cluster validation;
-public release publishing is approved and described in [the release guide](RELEASES.md).
-Publication evidence is recorded after the first successful tagged run.
+[v0.1.0](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0) publishes a
+multi-architecture GHCR image and Linux binary archives. The [release guide](RELEASES.md)
+and validation report record publication evidence and remaining checks.
 
 ## Review path
 
@@ -49,14 +50,14 @@ certification. Reported results and their scope are recorded in the validation r
 | Filesystem isolation | [Deployment](../k8s/base/deployment.yaml), [container check](../scripts/check-container.py) | Read-only root filesystem, dropped capabilities, mounted read-only token; verified |
 | No committed credentials | [ignore rules](../.gitignore), [secret provisioning](../k8s/README.md#secret-provisioning) | Tokens generated locally and provisioned separately; Full-history CI secret scan passed |
 | Image scanning | [image checks](../scripts/check-images.sh) | Both application architectures passed the HIGH/CRITICAL vulnerability gate |
-| Prevent vulnerable releases | Local scanner exits on HIGH/CRITICAL findings | Release workflow requires CI and scans all actual release outputs before publishing; tagged execution pending |
-| Rolling availability | [Deployment](../k8s/base/deployment.yaml), [shutdown handling](../main.go), [rollout check](../scripts/check-rollout.py) | Same-image rolling restart: 1,106 requests, zero observed failures |
+| Prevent vulnerable releases | Local scanner exits on HIGH/CRITICAL findings | Release v0.1.0 passed CI and both architecture image/binary scan gates before publication |
+| Rolling availability | [Deployment](../k8s/base/deployment.yaml), [shutdown handling](../main.go), [rollout check](../scripts/check-rollout.py) | Restart: 1,106 requests; release image update: 1,067; rollback: 1,013; zero observed failures in each check |
 | Startup and health checks | [Deployment probes](../k8s/base/deployment.yaml) | Both replicas became ready with the intentional 10-second startup delay |
 | ARM64 preference | [node affinity](../k8s/base/deployment.yaml) | ARM64 cluster verified; affinity permits AMD64 fallback |
 | Ingress/proxy access and isolation | [Ingress](../k8s/components/ingress/), [NetworkPolicy](../k8s/base/network-policy.yaml) | Real ingress access and denied foreign ingress/app egress verified with positive controls |
 | Multi-architecture builds | [Dockerfile](../Dockerfile), [image checks](../scripts/check-images.sh) | Linux AMD64/ARM64 built, scanned, and smoke-tested on native CI runners; initial Mac AMD64 checks used emulation |
-| GHCR storage and cluster pulls | Public GHCR selected; [registry approach](../k8s/README.md#registry-images) | Publication and actual registry pulls pending; local images currently loaded into Kind |
-| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | Tag-driven release workflow added; first published index, binary release, and pull validation pending |
+| GHCR storage and cluster pulls | Public GHCR selected; [registry approach](../k8s/README.md#registry-images) | Public v0.1.0: anonymous pull verified; actual ARM64 Kind pull with Always and no imagePullSecrets matched published runtime image IDs |
+| Versioned container and binary releases | [release plan](../IMPLEMENTATION_PLAN.md#phase-3-cicd-and-releases) | [v0.1.0 published](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0): multi-platform index, two Linux binary archives, checksums, and digest file; both downloaded binary archives passed published checksums |
 | EKS, scaling, regional distribution, retention | [technical Q&A](QUESTIONS_AND_ANSWERS.md) | Design documented; AWS resources and lifecycle automation not provisioned |
 
 ## Quick start and demo
@@ -104,9 +105,11 @@ Optional live demonstrations:
 
 - The cluster has one node. Replica count and a passing restart check do not prove
   node-failure resilience or a general availability guarantee.
-- The rollout test replaces pods using the same image. New-version upgrades,
-  rollback, GHCR pulls, and published binary releases remain unverified. CI
-  execution status is recorded in the validation report.
+- Release image update and rollback were tested on the ARM64 Kind node with
+  unchanged application logic. Both architectures passed native CI; anonymous
+  registry manifests were verified for both. This does not prove application
+  behavior changes or an actual AMD64 cluster rollout. Full results are in
+  [the validation report](../VALIDATION.md).
 - Vulnerability results are point-in-time observations. Release publication must
   re-scan both architectures and block promotion on HIGH/CRITICAL findings.
 - Local ingress uses HTTP on loopback. Production TLS, observability, HPA, and

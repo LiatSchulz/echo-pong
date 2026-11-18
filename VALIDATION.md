@@ -62,7 +62,7 @@ is replaced. Both scripts explicitly target the local cluster.
 - Resource requests and limits remain initial estimates. HPA, production TLS,
   observability, and cloud load-balancer readiness need environment-specific work.
 - Images were loaded locally. GHCR publication, anonymous registry pulls,
-  multi-platform index publication, and binary release execution remain unverified.
+  multi-platform index publication and binary releases are now verified in the release phase below.
   CI workflows passed hosted validation; evidence is recorded below. Public GHCR is approved for reviewer access; release execution is tracked below.
 - Network denial tests cover specific paths with positive controls. The intended
   policy is no application egress and ingress only from the proxy; node-level
@@ -87,11 +87,37 @@ version tags, and GitHub Releases are excluded. Hosted validation passed for rev
 Actionlint, ShellCheck, shell syntax, documentation-link checks, and local binary
 build/checksum verification also passed. Native hosted AMD64 execution now
 complements the earlier emulated workstation checks. New-version upgrades,
-registry pulls, and release publication remain unverified.
+registry pulls remained pending at that phase; release publication is now verified below.
 
 ## Release phase
 
-The [tagged release workflow](.github/workflows/release.yml) and
-[registry-backed deployment check](scripts/verify-release.sh) are implemented.
-Static workflow and shell checks passed. The first tagged publication, public
-package visibility, anonymous pulls, upgrade, and rollback still require execution.
+[Release v0.1.0](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0)
+was published from merged `main` revision `de7937b` by
+[successful workflow 44335024546](https://github.com/LiatSchulz/echo-pong/actions/runs/44335024546).
+All source, full-history secret, native-platform CI, and Kind integration gates passed.
+The publication job scanned both actual release image archives and both binary
+outputs before pushing the same scanned images. No HIGH/CRITICAL findings were reported.
+
+The release contains Linux AMD64/ARM64 archives, `checksums.txt`, and `image-digest.txt`.
+Both downloaded archives passed local SHA256 verification on 2026-11-18.
+
+```text
+ghcr.io/liatschulz/echo-pong@sha256:9808ef4a2c2b0451db33b6ccbcb6fdc4f935d2f803bf54c35ebe5bd43f59c2f0
+```
+
+Public access was verified without stored Docker credentials: anonymous pull
+succeeded, and both architecture manifests were fetched anonymously and checked
+against their SHA256 digests.
+
+On the ARM64 Kind cluster, the Deployment was updated from its local image to the
+published digest with `imagePullPolicy: Always` and no image-pull Secret. Both
+ready pods reported the expected release image ID. Continuous ingress traffic
+observed **1,067 requests and zero failures** during the update. Rollback then
+served **1,013 requests with zero failures** and restored the prior image and
+pull policy. These are local-to-published artifact transition tests; no application
+logic change was introduced between the local baseline and this release.
+
+The base Deployment now references the scanned release digest; the local overlay
+still supports local image loading. The live demo was reconciled to the published
+release after rollback validation. Production fault tolerance and load capacity
+remain outside these checks.

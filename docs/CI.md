@@ -53,8 +53,8 @@ Public images are owned by `LiatSchulz` and stored at
 `ghcr.io/liatschulz/echo-pong`. Publication uses the workflow's short-lived
 `GITHUB_TOKEN`; no personal publishing token is stored in the repository.
 [Release details](RELEASES.md) describe versions, immutable deployment digests,
-access, and cleanup scope. Actual publication remains unverified until a tagged
-run succeeds and the package is publicly pullable.
+access, and cleanup scope. The first tagged run succeeded, and anonymous pulls plus published-image
+rollout/rollback were verified. See the validation report for exact evidence.
 
 ## Evidence
 
