@@ -11,15 +11,15 @@ The application runs behind an ingress controller with two replicas, restricted
 containers, mounted authentication credentials, and enforced network isolation.
 Both CPU architectures have been built and tested. Rolling restart availability
 and network isolation have been verified through local integration checks. CI runs source/security checks and disposable-cluster integration. Release
-publication uses a separate gated version-tag workflow. Actual tagged release
-execution is tracked in the validation report.
+publication uses a separate gated version-tag workflow. [Version v0.1.0](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0)
+has published successfully; tagged execution is tracked in the validation report.
 
 | Demonstrated locally | Still to implement or validate |
 | --- | --- |
-| Linux ARM64 and AMD64 images and HTTP/CLI smoke tests | Release publishing and promotion gates |
-| Non-root, read-only runtime with dropped capabilities | GHCR publication, binary releases, production digest promotion |
+| Linux ARM64 and AMD64 images, native CI smoke tests, anonymous GHCR access | Production load and multi-node failure validation |
+| Non-root, read-only runtime; published image update and rollback verified | Automatic production deployment and rollback |
 | Trivy scans with zero HIGH/CRITICAL findings at validation time | Scheduled rescanning as vulnerability data changes |
-| Ingress rolling restart: 1,106 requests, zero observed failures | New-version release rollout and rollback automation |
+| Ingress restart: 1,106 requests; release image update: 1,067; rollback: 1,013; zero observed failures | Application behavior changes and production rollout scenarios |
 | Positive and negative network controls | Multi-node failure recovery, load tests, cloud deployment |
 
 Initial AMD64 checks used emulation on the ARM64 Mac; CI now also smoke-tests
@@ -60,7 +60,7 @@ flowchart TD
         CLI -. Kubernetes API .-> Node
     end
     Client -->|"loopback mapping: 8080 → 30080"| Proxy
-    Registry["Future: GHCR / regional ECR"] -. node image pulls .-> CRI
+    Registry["GHCR releases / future regional ECR"] -. node image pulls .-> CRI
 ```
 
 - Colima provides the Linux VM needed to run Linux containers on macOS.
@@ -72,8 +72,9 @@ flowchart TD
   egress, including DNS. This app has no outbound dependencies.
 - Image pulls are node operations. Denying app-pod egress does not prevent the
   node from pulling an image; node registry connectivity and credentials remain
-  separate requirements. Local images are loaded into Kind and use pull policy
-  `Never`.
+  separate requirements. The local-build overlay loads images into Kind and uses pull policy
+  `Never`. Separately, actual ARM64 cluster pulls of the published digest were
+  verified with `Always` and without `imagePullSecrets`.
 
 ## Running system
 
@@ -143,13 +144,21 @@ The [CI workflows](CI.md) validate pull requests without publishing releases.
 Native AMD64/ARM64 jobs build, scan, and smoke-test images; a separate job tests
 deployment on Kind. Binary archives and checksums are prepared in the job workspace.
 The [version-tag workflow](RELEASES.md) builds both architectures, scans each, and blocks promotion
-on HIGH/CRITICAL findings, publish one multi-platform image index to GHCR, and
-attach versioned binary archives and checksums to a GitHub Release. Production
+on HIGH/CRITICAL findings, publishes one multi-platform image index to GHCR, and
+attaches versioned binary archives and checksums to a GitHub Release. Production
 should deploy the approved index digest so each node chooses its architecture
-without tags moving underneath the deployment. The workflow is implemented; its first tagged publication remains unverified.
+without tags moving underneath the deployment. [The v0.1.0 release run](https://github.com/LiatSchulz/echo-pong/actions/runs/44335024546)
+succeeded after both architecture image and binary vulnerability gates passed.
+The release includes two Linux binary archives, checksums, and an image-digest
+file. Anonymous pulls succeeded with an empty Docker credential configuration,
+and both architecture manifests were validated through the anonymous registry API.
+Both downloaded binary archives passed their published checksums. The actual ARM64
+Kind update and rollback served 1,067 and 1,013 requests respectively with zero
+observed failures; runtime image IDs matched the published artifact. These were
+image-transition tests with unchanged application logic. See [validation evidence](../VALIDATION.md).
 
-Public GHCR is selected for simple reviewer access. Public packages
-allow anonymous pulls. Private packages restrict access and require read-only
+Public GHCR is selected for simple reviewer access. The v0.1.0 package is public
+and anonymous access has been verified. Public packages allow anonymous pulls. Private packages restrict access and require read-only
 pull credentials, service-account configuration, and rotation. The application
 authentication Secret is separate from registry credentials.
 
@@ -157,5 +166,5 @@ authentication Secret is separate from registry credentials.
 
 [Technical questions and answers](QUESTIONS_AND_ANSWERS.md) covers the design
 choices, scaling strategy, EKS approach, regional image distribution, and retention.
-Release publication and cloud infrastructure remain planned. Review and release
+Release v0.1.0 is published; cloud infrastructure remains planned. Review and release
 follow-up are tracked in [tomorrow’s checklist](TOMORROW.md).

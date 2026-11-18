@@ -3,7 +3,10 @@
 Current implementation details and production design considerations for Echo Pong.
 Executed checks are recorded in [the validation report](../VALIDATION.md).
 CI checks and ephemeral-cluster validation are defined in [the CI guide](CI.md).
-GHCR publication, binary releases, and AWS deployment remain planned.
+[v0.1.0](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0) publishes
+the GHCR multi-platform image and Linux binary releases. Anonymous registry
+access, downloaded binary checksums, and an actual ARM64 cluster image update
+and rollback passed. AWS deployment remains planned.
 
 ## Containers and local architecture
 
@@ -20,7 +23,7 @@ Debugging uses separate diagnostic containers rather than tools in the app image
 **How are both architectures supported?** The builder runs natively and Go
 cross-compiles Linux amd64 and arm64 with CGO disabled. Both images were built,
 scanned, and smoke-tested. Initial Mac AMD64 execution used emulation; CI now
-also runs both architectures natively. Production performance has not been measured. A combined registry image index remains release work.
+also runs both architectures natively. Production performance has not been measured. The v0.1.0 release publishes a combined registry image index for both architectures.
 
 **Why pin the compiler image by digest?** A digest fixes the exact builder content
 used for the build. Updates become deliberate changes followed by rebuilding and
@@ -46,7 +49,9 @@ allows existing requests to finish after SIGTERM. The 10-second delay and
 **Does zero unavailable replicas guarantee zero downtime?** No. It constrains
 rolling replacement, but readiness, routing propagation, graceful shutdown, spare
 capacity, and infrastructure health also matter. One local rolling restart served
-1,106 requests with zero observed failures; this is evidence for that scenario.
+1,106 requests with zero observed failures. The published-image update served
+1,067 requests and rollback served 1,013, also without observed failures. These
+image transitions used unchanged application logic; see [the validation report](../VALIDATION.md).
 
 **What happens if a new version never becomes ready?** Existing healthy replicas
 remain while the rollout stalls. The progress deadline reports failure; it does
@@ -68,11 +73,14 @@ pod. This provides stronger evidence than merely applying a policy manifest.
 
 **How can images be pulled if app egress is blocked?** Node container runtimes
 pull images; application NetworkPolicy governs pod traffic. Node registry
-connectivity is separate. Current local images are loaded into Kind, so actual
-GHCR pulls remain to be validated after publication.
+connectivity is separate. The local-build overlay loads images into Kind. Version v0.1.0 is now published
+to GHCR. Anonymous Docker access with an empty credential configuration and
+both architecture registry manifests were verified. Actual ARM64 Kind pulls used
+`Always`, no `imagePullSecrets`, and matched published runtime image IDs.
 
 **Public or private GHCR?** Public GHCR is selected for this demonstration.
-Public images simplify developer access
+The v0.1.0 package is public and anonymous access has been verified. Public
+images simplify developer access
 and anonymous cluster pulls. Private images provide access control for proprietary
 artifacts, but need read-only pull credentials and credential lifecycle management.
 Neither option replaces vulnerability scanning or protects secrets baked into an
@@ -118,5 +126,6 @@ and rollback digests, their platform manifests, release binaries, and provenance
 Expire unreferenced development images and caches on a documented schedule.
 Apply lifecycle policies separately to regional mirrors; coordinate deletions
 with deployment inventory so cleanup cannot remove an image still needed by a
-new node or rollback. Automated tagging, cleanup, and retention remain pending.
+new node or rollback. Version-tag release automation published v0.1.0 after image and binary
+vulnerability gates passed. Automated cleanup and retention remain pending.
 

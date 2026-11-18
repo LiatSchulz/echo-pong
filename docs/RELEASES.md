@@ -6,8 +6,10 @@ credential setup. The source repository is already public. A proprietary product
 would normally restrict package access and provision read-only pull credentials.
 Public access permits downloads; publishing still requires authorization.
 
-The workflow is implemented; first tagged execution and public pull verification
-remain pending until the reviewed change is merged.
+[Release v0.1.0](https://github.com/LiatSchulz/echo-pong/releases/tag/v0.1.0)
+was published by [the successful tagged workflow](https://github.com/LiatSchulz/echo-pong/actions/runs/44335024546).
+Both downloaded binary archives passed checksum verification. Anonymous pulls and registry deployment/rollback passed; exact evidence is
+recorded in [validation](../VALIDATION.md).
 
 ## Release contract
 
@@ -52,3 +54,17 @@ are removed as part of the demo workflow.
 If a run partially publishes a version and then fails, existing tags are retained.
 Investigate the failure and use a new version rather than silently replacing a
 previously published artifact.
+
+Published multi-platform digest:
+
+```text
+ghcr.io/liatschulz/echo-pong@sha256:9808ef4a2c2b0451db33b6ccbcb6fdc4f935d2f803bf54c35ebe5bd43f59c2f0
+```
+
+To reproduce public-image update and rollback under traffic:
+
+```sh
+scripts/verify-release.sh ghcr.io/liatschulz/echo-pong@sha256:9808ef4a2c2b0451db33b6ccbcb6fdc4f935d2f803bf54c35ebe5bd43f59c2f0
+```
+
+The script targets the local cluster and restores its prior image after testing.

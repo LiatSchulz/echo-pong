@@ -14,9 +14,10 @@ scratch container needs no shell or `sleep` executable.
 - `k8s/overlays/ingress`: adds an optional Traefik Ingress for
   `echo-pong.localhost`. It does not install the controller or provision TLS.
 
-The base image `ghcr.io/liatschulz/echo-pong:unreleased` is a deliberate placeholder,
-not an existing release. Release automation and digest substitution are a later
-integration step. Do not deploy that placeholder to production.
+The base image is pinned to the scanned multi-platform `v0.1.0` release digest.
+The local overlay replaces it with the locally loaded image. Registry deployments
+use the base or ingress overlay; the package must be publicly pullable.
+See [release details](../docs/RELEASES.md).
 
 ## Secret provisioning
 
